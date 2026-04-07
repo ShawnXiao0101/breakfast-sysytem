@@ -3,12 +3,14 @@ package main
 import (
 	"net/http"
 	"strconv"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 )
 
 var orders = []Order{}
 var nextID = 1
+var ordersMu sync.Mutex
 
 func createOrder(c *gin.Context) {
 	var req struct {
@@ -20,6 +22,7 @@ func createOrder(c *gin.Context) {
 		return
 	}
 
+	ordersMu.Lock()
 	order := Order{
 		ID:     nextID,
 		Items:  req.Items,
@@ -28,12 +31,22 @@ func createOrder(c *gin.Context) {
 
 	nextID++
 	orders = append(orders, order)
+	ordersMu.Unlock()
+
+	hub.Broadcast(Event{
+		Type: EventOrderCreated,
+		Data: order,
+	})
 
 	c.JSON(http.StatusOK, order)
 }
 
 func getOrders(c *gin.Context) {
-	c.JSON(http.StatusOK, orders)
+	ordersMu.Lock()
+	ordersSnapshot := append([]Order(nil), orders...)
+	ordersMu.Unlock()
+
+	c.JSON(http.StatusOK, ordersSnapshot)
 }
 
 func updateStatus(c *gin.Context) {
@@ -49,13 +62,23 @@ func updateStatus(c *gin.Context) {
 		return
 	}
 
+	ordersMu.Lock()
 	for i := range orders {
 		if orders[i].ID == id {
 			orders[i].Status = req.Status
-			c.JSON(http.StatusOK, orders[i])
+			updatedOrder := orders[i]
+			ordersMu.Unlock()
+
+			hub.Broadcast(Event{
+				Type: EventOrderUpdated,
+				Data: updatedOrder,
+			})
+
+			c.JSON(http.StatusOK, updatedOrder)
 			return
 		}
 	}
+	ordersMu.Unlock()
 
 	c.JSON(http.StatusNotFound, gin.H{"error": "order not found"})
 }

@@ -9,6 +9,7 @@ func main() {
 
 	r.POST("/order", createOrder)
 	r.GET("/orders", getOrders)
+	r.GET("/ws", serveWS)
 	r.POST("/order/:id/status", updateStatus)
 
 	r.Run(":8080")
