@@ -1,4 +1,4 @@
-package main
+package protocol
 
 type Status string
 
@@ -8,6 +8,15 @@ const (
 	Ready   Status = "待取餐"
 	Done    Status = "已完成"
 )
+
+func (s Status) IsValid() bool {
+	switch s {
+	case Pending, Cooking, Ready, Done:
+		return true
+	default:
+		return false
+	}
+}
 
 type Order struct {
 	ID     int      `json:"id"`
@@ -25,4 +34,12 @@ const (
 type Event struct {
 	Type EventType `json:"type"`
 	Data Order     `json:"data"`
+}
+
+type CreateOrderRequest struct {
+	Items []string `json:"items"`
+}
+
+type UpdateStatusRequest struct {
+	Status Status `json:"status"`
 }
